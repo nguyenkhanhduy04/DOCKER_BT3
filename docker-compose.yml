@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # 1. Cơ sở dữ liệu MariaDB
+  db:
+    image: mariadb:10.5 # Bạn có thể đổi sang 'latest' nếu muốn
+    container_name: mariadb-container
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: khanhduy # Mật khẩu theo yêu cầu
+      # Thêm CSDL và user tùy chọn (nên dùng thay vì root)
+      # MARIADB_DATABASE: my_database
+      # MARIADB_USER: my_user
+      # MARIADB_PASSWORD: my_user_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  # 2. Quản lý CSDL phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin-container
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db # Trỏ đến service name của MariaDB
+      PMA_PORT: 3306
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  # 3. Node-RED
+  nodered:
+    image: nodered/node-red:latest
+    container_name: nodered-container
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    volumes:
+      - nodered_data:/data
+    networks:
+      - app-network
+
+  # 4. Cơ sở dữ liệu InfluxDB (Time-series)
+  influxdb:
+    image: influxdb:latest # Mặc định là v2.x
+    container_name: influxdb-container
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - app-network
+
+  # 5. Trực quan hóa Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-container
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SERVER_ROOT_URL=http://khanhduy.com/grafana
+    networks:
+      - app-network
+
+  # 6. Web server / Reverse Proxy Nginx
+  nginx:
+    image: nginx:latest
+    container_name: nginx-container
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mount thư mục cấu hình (sẽ tạo ở bước 2)
+      - ./local.conf:/etc/nginx/conf.d/default.conf
+      # Mount thư mục chứa file SSL (tùy chọn)
+      # - ./nginx/ssl:/etc/nginx/ssl
+      # Mount thư mục chứa nội dung web tĩnh (tùy chọn)
+      - ./html:/usr/share/html
+    depends_on: # Chờ các service khác khởi động trước
+      - phpmyadmin
+      - nodered
+      - influxdb
+      - grafana
+    networks:
+      - app-network
+
+# Khai báo volumes để dữ liệu không bị mất khi container bị xóa
+volumes:
+  mariadb_data:
+  nodered_data:
+  influxdb_data:
+  grafana_data:
+
+# Khai báo network chung để các container có thể "gọi" nhau bằng tên service
+networks:
+  app-network:
+    driver: bridge

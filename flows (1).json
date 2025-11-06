@@ -1,0 +1,314 @@
+[
+    {
+        "id": "e455c7406b54ea84",
+        "type": "tab",
+        "label": "Project APIs (Auth & Sensor)",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "1b390595ab6f8254",
+        "type": "http in",
+        "z": "e455c7406b54ea84",
+        "name": "POST /register",
+        "url": "/register",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 150,
+        "y": 100,
+        "wires": [
+            [
+                "4dac4d38834d6076"
+            ]
+        ]
+    },
+    {
+        "id": "4dac4d38834d6076",
+        "type": "function",
+        "z": "e455c7406b54ea84",
+        "name": "Chuẩn bị SQL Đăng Ký",
+        "func": "// 1. Lấy HASH (đã được băm bởi HTML)\nconst username = msg.payload.username;\nconst hash_from_html = msg.payload.password_hash; // Lấy HASH\n\nif (!username || !hash_from_html) {\n    msg.payload = { status: \"error\", message: \"Thiếu username hoặc hash\" };\n    msg.statusCode = 400;\n    return [null, msg]; \n}\n\n// 2. Chuẩn bị SQL (với bảng users đã bỏ cột salt)\nmsg.topic = \"INSERT INTO users (username, password_hash) VALUES (?, ?)\";\nmsg.payload = [username, hash_from_html];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 100,
+        "wires": [
+            [
+                "05378c6efda3204b"
+            ],
+            [
+                "9ac539ab5696d74d"
+            ]
+        ]
+    },
+    {
+        "id": "05378c6efda3204b",
+        "type": "mysql",
+        "z": "e455c7406b54ea84",
+        "mydb": "mysql-config-node",
+        "name": "INSERT User",
+        "x": 600,
+        "y": 80,
+        "wires": [
+            [
+                "78b4dfb392efac71"
+            ]
+        ]
+    },
+    {
+        "id": "78b4dfb392efac71",
+        "type": "function",
+        "z": "e455c7406b54ea84",
+        "name": "Payload: Đăng ký OK",
+        "func": "msg.payload = { status: \"success\", message: \"Đăng ký thành công\" };\nmsg.statusCode = 201;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 790,
+        "y": 80,
+        "wires": [
+            [
+                "9ac539ab5696d74d"
+            ]
+        ]
+    },
+    {
+        "id": "9ac539ab5696d74d",
+        "type": "http response",
+        "z": "e455c7406b54ea84",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 1010,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "aa632b5c816f0889",
+        "type": "http in",
+        "z": "e455c7406b54ea84",
+        "name": "POST /login",
+        "url": "/login",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 140,
+        "y": 220,
+        "wires": [
+            [
+                "792b7b3b3f6ff45b"
+            ]
+        ]
+    },
+    {
+        "id": "792b7b3b3f6ff45b",
+        "type": "function",
+        "z": "e455c7406b54ea84",
+        "name": "Chuẩn bị SQL Đăng Nhập",
+        "func": "// 1. Lấy HASH (đã được băm bởi HTML)\nconst username = msg.payload.username;\nconst hash_from_html = msg.payload.password_hash; // Lấy HASH\n\n// 2. Chuẩn bị SQL\n// So sánh hash_from_html với password_hash trong CSDL\nmsg.topic = \"SELECT * FROM users WHERE username = ? AND password_hash = ?\";\nmsg.payload = [username, hash_from_html];\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 220,
+        "wires": [
+            [
+                "3101e3c0b24e73d4"
+            ]
+        ]
+    },
+    {
+        "id": "3101e3c0b24e73d4",
+        "type": "mysql",
+        "z": "e455c7406b54ea84",
+        "mydb": "mysql-config-node",
+        "name": "SELECT User",
+        "x": 580,
+        "y": 220,
+        "wires": [
+            [
+                "720f7e3b96f59675"
+            ]
+        ]
+    },
+    {
+        "id": "720f7e3b96f59675",
+        "type": "function",
+        "z": "e455c7406b54ea84",
+        "name": "Kiểm tra kết quả SQL",
+        "func": "// msg.payload là kết quả từ node mysql\nif (msg.payload && msg.payload.length > 0) {\n    // TÌM THẤY USER (hash khớp)\n    msg.payload = { status: \"success\", message: \"Đăng nhập thành công\" };\n    msg.statusCode = 200;\n} else {\n    // KHÔNG TÌM THẤY (sai username hoặc hash)\n    msg.payload = { status: \"error\", message: \"Sai username hoặc password\" };\n    msg.statusCode = 401;\n}\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 800,
+        "y": 220,
+        "wires": [
+            [
+                "1f90807cc051f8af"
+            ]
+        ]
+    },
+    {
+        "id": "1f90807cc051f8af",
+        "type": "http response",
+        "z": "e455c7406b54ea84",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 1010,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "3118165afa9f8239",
+        "type": "http in",
+        "z": "e455c7406b54ea84",
+        "name": "GET /api/latest-sensors",
+        "url": "/api/latest-sensors",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 180,
+        "y": 340,
+        "wires": [
+            [
+                "4550cd67140b9d01"
+            ]
+        ]
+    },
+    {
+        "id": "c4e8154fd2218527",
+        "type": "mysql",
+        "z": "e455c7406b54ea84",
+        "mydb": "mysql-config-node",
+        "name": "SELECT Sensors",
+        "x": 490,
+        "y": 380,
+        "wires": [
+            [
+                "53721ad1b2731995"
+            ]
+        ]
+    },
+    {
+        "id": "53721ad1b2731995",
+        "type": "http response",
+        "z": "e455c7406b54ea84",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 630,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "4550cd67140b9d01",
+        "type": "function",
+        "z": "e455c7406b54ea84",
+        "name": "function 1",
+        "func": "// Đặt câu lệnh SQL vào msg.topic\n// Node mysql sẽ tự động thực thi câu lệnh trong msg.topic\nmsg.topic = \"SELECT sensor_id, value, last_updated FROM sensors_latest;\";\n\n// Xóa payload cũ (nếu có) để tránh xung đột\nmsg.payload = null; \n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 480,
+        "wires": [
+            [
+                "c4e8154fd2218527"
+            ]
+        ]
+    },
+    {
+        "id": "5766f9ddbda3912c",
+        "type": "inject",
+        "z": "e455c7406b54ea84",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "1",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 70,
+        "y": 580,
+        "wires": [
+            [
+                "6f8e6e27809297e4"
+            ]
+        ]
+    },
+    {
+        "id": "6f8e6e27809297e4",
+        "type": "function",
+        "z": "e455c7406b54ea84",
+        "name": "function 2",
+        "func": "// Tên cảm biến sẽ được cập nhật\nconst sensorId = \"realtime_sensor\";\n\n// Tạo giá trị ngẫu nhiên (ví dụ: từ 10 đến 40)\nconst randomValue = (Math.random() * 30 + 10).toFixed(2);\n\n// 1. Chuẩn bị cho MariaDB (Update 'sensors_latest')\nmsg.topic = `INSERT INTO sensors_latest (sensor_id, value) \n             VALUES (?, ?) \n             ON DUPLICATE KEY UPDATE value = ?`;\nmsg.payload = [sensorId, randomValue, randomValue];\n\n// 2. Chuẩn bị cho InfluxDB (Lưu lịch sử)\nconst influxPayload = {\n    measurement: 'sensors',\n    tags: {\n        sensor_id: sensorId\n    },\n    fields: {\n        value: parseFloat(randomValue)\n    }\n};\n\n// Trả về 2 output: [0] cho MariaDB, [1] cho InfluxDB\nreturn [msg, { payload: influxPayload }];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 600,
+        "wires": [
+            [
+                "901229cafd0a1030"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "901229cafd0a1030",
+        "type": "mysql",
+        "z": "e455c7406b54ea84",
+        "mydb": "mysql-config-node",
+        "name": "SELECT Sensors",
+        "x": 550,
+        "y": 580,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "mysql-config-node",
+        "type": "MySQLdatabase",
+        "name": "MariaDB-Project",
+        "host": "db",
+        "port": "3306",
+        "db": "khanhduy",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "031f77c49c9c49bd",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-node-mysql": "2.0.0"
+        }
+    }
+]
